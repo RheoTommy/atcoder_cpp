@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
-project(atcoder)
+project(atcoder_cpp)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "-g -Wall  -fsanitize=address -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC")
 include_directories(.)
 
-add_executable(atcoder main.cpp)
+add_executable(atcoder_cpp main.cpp)
 add_executable(a src/a.cpp)
 add_executable(b src/b.cpp)
 add_executable(c src/c.cpp)
