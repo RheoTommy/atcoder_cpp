@@ -1,103 +1,142 @@
+#pragma GCC target("avx2")
+#pragma GCC optimize("O3")
+#pragma GCC optimize("unroll-loops")
+
 #include <bits/stdc++.h>
 
 using namespace std;
 using ll = long long;
 
-#define REP(i, n) for (ll i = 0; (i) < ll(n); (i)++)
-#define REP2(i, s, n) for (ll i = (s); (i) < ll(n); (i)++)
-#define R_REP(i, n) for (ll i = (n) - 1; (i) >= 0; (i)--)
-#define R_REP2(i, s, n) for (ll i = (n) - 1; (i) >= (s); (i)--)
+struct UnionFind {
+    vector<ll> par;
 
-template<class T>
-bool chmin(T &x, T y) {
-    if (x > y) {
-        x = y;
+    explicit UnionFind(ll n) : par(n, -1) {}
+
+    ll root(ll x) {
+        if (par[x] < 0) return x;
+        return par[x] = root(par[x]);
+    }
+
+    bool unite(ll x, ll y) {
+        ll rx = root(x);
+        ll ry = root(y);
+        if (rx == ry) return false;
+        if (par[rx] > par[ry]) {
+            swap(rx, ry);
+        }
+        par[rx] += par[ry];
+        par[ry] = rx;
         return true;
     }
-    return false;
-}
 
-bool is_connected(ll bit) {
-    vector<vector<ll>> a(4, vector<ll>(4, 0));
-    REP(i, 16) {
-        a[i / 4][i % 4] = (bit >> i) & 1;
+    bool same(ll x, ll y) {
+        return root(x) == root(y);
     }
-
-    ll dx[4] = {1, 0, -1, 0};
-    ll dy[4] = {0, 1, 0, -1};
-
-    vector<vector<ll>> b = a;
-    REP(si, 4) {
-        REP(sj, 4) {
-            if (1 <= si && si <= 2 && 1 <= sj && sj <= 2) continue;
-            if (b[si][sj] == 1) continue;
-            b[si][sj] = 1;
-
-            queue<pair<ll, ll>> que;
-            que.emplace(si, sj);
-            while (!que.empty()) {
-                auto[i, j] = que.front();
-                que.pop();
-                REP(k, 4) {
-                    ll ii = i + dx[k];
-                    ll jj = j + dy[k];
-                    if (ii < 0 || ii >= 4 || jj < 0 || jj >= 4) continue;
-                    if (b[ii][jj] == 0) {
-                        b[ii][jj] = 1;
-                        que.emplace(ii, jj);
-                    }
-                }
-            }
-        }
-    }
-
-    REP(i, 4) REP(j, 4) if (b[i][j] == 0) return false;
-
-    ll cnt = 0;
-
-    REP(si, 4) {
-        REP(sj, 4) {
-            if (a[si][sj] == 0) continue;
-
-            queue<pair<ll, ll>> que;
-            que.emplace(si, sj);
-            while (!que.empty()) {
-                auto[i, j] = que.front();
-                que.pop();
-                REP(k, 4) {
-                    ll ii = i + dx[k];
-                    ll jj = j + dy[k];
-                    if (ii < 0 || ii >= 4 || jj < 0 || jj >= 4) continue;
-                    if (a[ii][jj] == 1) {
-                        a[ii][jj] = 0;
-                        que.emplace(ii, jj);
-                    }
-                }
-            }
-            cnt++;
-        }
-    }
-
-    return cnt <= 1;
-}
+};
 
 int main() {
-    vector<vector<ll>> a(4, vector<ll>(4, 0));
-    REP(i, 4) REP(j, 4) cin >> a[i][j];
+    ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
 
-    ll cnt = 0;
+    ll n, m, k;
+    cin >> n >> m >> k;
 
-    REP(bit, 1ll << 16) {
-        if (!is_connected(bit)) continue;
+    vector<pair<ll, ll>> uv;
+    for (ll i = 0; i < ll(m); i++) {
+        ll u, v;
+        cin >> u >> v;
+        u--, v--;
+        uv.emplace_back(u, v);
+    }
+    vector<ll> s(n);
+    for (ll i = 0; i < ll(n); i++) cin >> s[i], s[i]--;
 
-        bool flag = true;
-        REP(i, 4) {
-            REP(j, 4) {
-                if (a[i][j] == 1 && ((bit >> (i * 4 + j)) & 1) == 0) flag = false;
-            }
-        }
-        if (flag) cnt++;
+    map<pair<ll, ll>, set<pair<ll, ll>>> edge;
+    for (ll i = 0; i < ll(m); i++) {
+        auto[u, v] = uv[i];
+        edge[{s[u], s[v]}].insert({u, v});
+        edge[{s[v], s[u]}].insert({v, u});
     }
 
-    cout << cnt << endl;
+    vector<vector<ll>> vertex(k);
+    vector<ll> tree_size(k);
+    vector<ll> num(n);
+    for (ll i = 0; i < ll(n); i++) {
+        vertex[s[i]].push_back(i);
+    }
+    for (ll ki = 0; ki < ll(k); ki++) {
+        map<ll, ll> index;
+        ll len = (ll) vertex[ki].size();
+        ll size = len;
+        for (ll i = 0; i < ll(len); i++) {
+            index[vertex[ki][i]] = i;
+        }
+        UnionFind uf(len);
+        for (auto[u, v]: edge[{ki, ki}]) {
+            if (uf.unite(index[u], index[v])) size--;
+        }
+        vector<ll> par_num(len, -1);
+        ll cnt = 0;
+        for (ll i = 0; i < ll(len); i++) {
+            if (uf.root(i) == i) par_num[i] = cnt, cnt++;
+        }
+
+        for (ll i = 0; i < ll(len); i++) {
+            num[vertex[ki][i]] = par_num[uf.root(i)];
+        }
+
+        tree_size[ki] = size;
+    }
+
+
+    ll q;
+    cin >> q;
+    vector<pair<ll, ll>> query;
+    for (ll i = 0; i < ll(q); i++) {
+        ll a, b;
+        cin >> a >> b;
+        a--, b--;
+        query.emplace_back(a, b);
+    }
+
+    vector<pair<ll, ll>> que = query;
+    map<pair<ll, ll>, ll> ans;
+    sort(que.begin(), que.end(),
+         [&](pair<ll, ll> a, pair<ll, ll> b) {
+             pair aa = pair{min(s[a.first], s[a.second]), max(s[a.first], s[a.second])};
+             pair bb = pair{min(s[b.first], s[b.second]), max(s[b.first], s[b.second])};
+             return aa < bb;
+         });
+
+    UnionFind uf(0);
+    ll sa = -1;
+    ll sb = -1;
+    for (auto[a, b]: que) {
+        if (s[a] == s[b]) {
+            ans[{a, b}] = num[a] == num[b];
+            continue;
+        }
+
+        if (sa == s[a] && sb == s[b]) {
+            ans[{a, b}] = uf.same(num[a], tree_size[sa] + num[b]);
+        } else if (sa == s[b] && sb == s[a]) {
+            ans[{a, b}] = uf.same(tree_size[sb] + num[a], num[b]);
+        } else {
+            sa = min(s[a], s[b]);
+            sb = max(s[a], s[b]);
+
+            ll a_size = tree_size[s[a]];
+            ll b_size = tree_size[s[b]];
+            uf = UnionFind(a_size + b_size);
+
+            for (auto[u, v]: edge[{s[a], s[b]}]) {
+                uf.unite(num[u], a_size + num[v]);
+            }
+            ans[{a, b}] = uf.same(num[a], a_size + num[b]);
+        }
+    }
+
+    for (auto[a, b]: query) {
+        cout << ans[{a, b}] << endl;
+    }
 }
